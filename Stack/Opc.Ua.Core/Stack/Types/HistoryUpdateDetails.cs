@@ -16,40 +16,51 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
-{    
-	/// <summary>
-	/// The description of a value to read.
-	/// </summary>
-    public abstract partial class HistoryUpdateDetails
+{
+    /// <summary>
+    /// The description of a value to read.
+    /// </summary>
+    public partial class HistoryUpdateDetails
     {
         #region Supporting Properties and Methods
         /// <summary>
-        /// The identifier for the Node being updated.
+        /// The NodeId associated with the instance.
         /// </summary>
-        public abstract NodeId NodeId
-        {
-            get;
-            set;
-        }
+        public virtual NodeId NodeId { get; set; }
+        //{
+        //    get
+        //    {
+        //        switch (this.GetType().Name)
+        //        {
+        //            case nameof(UpdateDataDetails): return ((UpdateDataDetails)this).NodeId;
+        //            case nameof(UpdateStructureDataDetails): return ((UpdateStructureDataDetails)this).NodeId;
+        //            case nameof(UpdateEventDetails): return ((UpdateEventDetails)this).NodeId;
+        //            case nameof(DeleteRawModifiedDetails): return ((DeleteRawModifiedDetails)this).NodeId;
+        //            case nameof(DeleteAtTimeDetails): return ((DeleteAtTimeDetails)this).NodeId;
+        //            case nameof(DeleteEventDetails): return ((DeleteEventDetails)this).NodeId;
+        //            default: return null;
+        //        }
+        //    }
+        //}
 
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle
         {
-            get { return m_handle;  }
+            get { return m_handle; }
             set { m_handle = value; }
         }
-        
+
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
         public bool Processed
         {
-            get { return m_processed;  }
+            get { return m_processed; }
             set { m_processed = value; }
         }
-                
+
         /// <summary>
         /// Validates a HistoryUpdateDetails parameter.
         /// </summary>
@@ -66,12 +77,12 @@ namespace Opc.Ua
             {
                 return StatusCodes.BadNodeIdInvalid;
             }
-            
+
             // passed basic validation.
             return null;
         }
         #endregion
-                            
+
         #region Private Fields
         private object m_handle;
         private bool m_processed;
