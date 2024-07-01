@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#define Use_Demo_Server
+//#define Use_Reference_Server
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -148,12 +151,21 @@ namespace Quickstarts
 
             try
             {
+#if Use_Reference_Server
+                string intNodeIdString = "ns=2;s=Scalar_Static_Int32";
+                string floatNodeIdString = "ns=2;s=Scalar_Static_Float";
+                string stringNodeIdString = "ns=2;s=Scalar_Static_String";
+#else
+                string intNodeIdString = "ns=2;s=Demo.Static.Scalar.Int32";
+                string floatNodeIdString = "ns=2;s=Demo.Static.Scalar.Float";
+                string stringNodeIdString = "ns=2;s=Demo.Static.Scalar.String";
+#endif
                 // Write the configured nodes
                 WriteValueCollection nodesToWrite = new WriteValueCollection();
 
                 // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
                 WriteValue intWriteVal = new WriteValue();
-                intWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Int32");
+                intWriteVal.NodeId = new NodeId(intNodeIdString);
                 intWriteVal.AttributeId = Attributes.Value;
                 intWriteVal.Value = new DataValue();
                 intWriteVal.Value.Value = (int)100;
@@ -161,7 +173,7 @@ namespace Quickstarts
 
                 // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
                 WriteValue floatWriteVal = new WriteValue();
-                floatWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Float");
+                floatWriteVal.NodeId = new NodeId(floatNodeIdString);
                 floatWriteVal.AttributeId = Attributes.Value;
                 floatWriteVal.Value = new DataValue();
                 floatWriteVal.Value.Value = (float)100.5;
@@ -169,7 +181,7 @@ namespace Quickstarts
 
                 // String Node - Objects\CTT\Scalar\Scalar_Static\String
                 WriteValue stringWriteVal = new WriteValue();
-                stringWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_String");
+                stringWriteVal.NodeId = new NodeId(stringNodeIdString);
                 stringWriteVal.AttributeId = Attributes.Value;
                 stringWriteVal.Value = new DataValue();
                 stringWriteVal.Value.Value = "String Test";
@@ -258,6 +270,7 @@ namespace Quickstarts
                 return;
             }
 
+#if Use_Reference_Server
             try
             {
                 // Define the UA Method to call
@@ -287,6 +300,7 @@ namespace Quickstarts
             {
                 m_output.WriteLine("Method call error: {0}", ex.Message);
             }
+#endif
         }
 
         /// <summary>
@@ -302,13 +316,24 @@ namespace Quickstarts
 
             try
             {
+#if Use_Reference_Server
+                string intNodeIdString = "ns=2;s=Scalar_Simulation_Int32";
+                string floatNodeIdString = "ns=2;s=Scalar_Simulation_Float";
+                string stringNodeIdString = "ns=2;s=Scalar_Simulation_String";
+#else
+                string intNodeIdString = "ns=2;s=Demo.Dynamic.Scalar.Int32";
+                string floatNodeIdString = "ns=2;s=Demo.Dynamic.Scalar.Float";
+                string stringNodeIdString = "ns=2;s=Demo.Dynamic.Scalar.String";
+#endif
+
+                uint queueSize = 41;
                 // Create a subscription for receiving data change notifications
 
                 // Define Subscription parameters
                 Subscription subscription = new Subscription(session.DefaultSubscription) {
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
-                    PublishingInterval = 1000,
+                    PublishingInterval = 30000,
                     LifetimeCount = 0,
                     MinLifetimeInterval = minLifeTime,
                 };
@@ -319,15 +344,19 @@ namespace Quickstarts
                 subscription.Create();
                 m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
+                // Archie - as far as I know, durable subscriptions are created here.
+                // Can I turn a durable subscription into non-durable?
+
                 // Create MonitoredItems for data changes (Reference Server)
 
                 MonitoredItem intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
-                intMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32");
+
+                intMonitoredItem.StartNodeId = new NodeId(intNodeIdString);
                 intMonitoredItem.AttributeId = Attributes.Value;
                 intMonitoredItem.DisplayName = "Int32 Variable";
                 intMonitoredItem.SamplingInterval = 1000;
-                intMonitoredItem.QueueSize = 10;
+                intMonitoredItem.QueueSize = queueSize;
                 intMonitoredItem.DiscardOldest = true;
                 intMonitoredItem.Notification += OnMonitoredItemNotification;
 
@@ -335,22 +364,22 @@ namespace Quickstarts
 
                 MonitoredItem floatMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // Float Node - Objects\CTT\Scalar\Simulation\Float
-                floatMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float");
+                floatMonitoredItem.StartNodeId = new NodeId(floatNodeIdString);
                 floatMonitoredItem.AttributeId = Attributes.Value;
                 floatMonitoredItem.DisplayName = "Float Variable";
                 floatMonitoredItem.SamplingInterval = 1000;
-                floatMonitoredItem.QueueSize = 10;
+                floatMonitoredItem.QueueSize = queueSize;
                 floatMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(floatMonitoredItem);
 
                 MonitoredItem stringMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // String Node - Objects\CTT\Scalar\Simulation\String
-                stringMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String");
+                stringMonitoredItem.StartNodeId = new NodeId(stringNodeIdString);
                 stringMonitoredItem.AttributeId = Attributes.Value;
                 stringMonitoredItem.DisplayName = "String Variable";
                 stringMonitoredItem.SamplingInterval = 1000;
-                stringMonitoredItem.QueueSize = 10;
+                stringMonitoredItem.QueueSize = queueSize;
                 stringMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(stringMonitoredItem);
@@ -364,7 +393,7 @@ namespace Quickstarts
                 m_output.WriteLine("Subscribe error: {0}", ex.Message);
             }
         }
-        #endregion
+#endregion
 
         #region Fetch with NodeCache
         /// <summary>
