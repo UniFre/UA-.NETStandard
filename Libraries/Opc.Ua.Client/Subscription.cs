@@ -1786,13 +1786,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        private bool GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
+        public bool GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
         {
             serverHandles = new UInt32Collection();
             clientHandles = new UInt32Collection();
             try
             {
-                var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
+                var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_id);
                 if (outputArguments != null && outputArguments.Count == 2)
                 {
                     serverHandles.AddRange((uint[])outputArguments[0]);
@@ -1804,6 +1804,33 @@ namespace Opc.Ua.Client
             {
                 Utils.LogError(sre, "SubscriptionId {0}: Failed to call GetMonitoredItems on server", m_id);
             }
+            return false;
+        }
+
+        /// <summary>
+        /// Set the subscription to durable.
+        /// </summary>
+        public bool SetSubscriptionDurable( uint lifetimeInHours, out uint revisedLifetimeInHours )
+        {
+            revisedLifetimeInHours = lifetimeInHours;
+
+            try
+            {
+                var outputArguments = m_session.Call(ObjectIds.Server,
+                    MethodIds.Server_SetSubscriptionDurable,
+                    m_id, lifetimeInHours );
+
+                if (outputArguments != null && outputArguments.Count == 1)
+                {
+                    revisedLifetimeInHours = (uint)outputArguments[0];
+                    return true;
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "SubscriptionId {0}: Failed to call SetSubscriptionDurable on server", m_id);
+            }
+
             return false;
         }
 

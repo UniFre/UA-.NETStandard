@@ -156,9 +156,9 @@ namespace Quickstarts
                 string floatNodeIdString = "ns=2;s=Scalar_Static_Float";
                 string stringNodeIdString = "ns=2;s=Scalar_Static_String";
 #else
-                string intNodeIdString = "ns=2;s=Demo.Static.Scalar.Int32";
-                string floatNodeIdString = "ns=2;s=Demo.Static.Scalar.Float";
-                string stringNodeIdString = "ns=2;s=Demo.Static.Scalar.String";
+                string intNodeIdString = "ns=3;s=Demo.Static.Scalar.Int32";
+                string floatNodeIdString = "ns=3;s=Demo.Static.Scalar.Float";
+                string stringNodeIdString = "ns=3;s=Demo.Static.Scalar.String";
 #endif
                 // Write the configured nodes
                 WriteValueCollection nodesToWrite = new WriteValueCollection();
@@ -234,7 +234,7 @@ namespace Quickstarts
 
                 // Set browse parameters
                 browser.BrowseDirection = BrowseDirection.Forward;
-                browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
+                browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable | (int)NodeClass.Method;
                 browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
                 browser.IncludeSubtypes = true;
 
@@ -250,6 +250,21 @@ namespace Quickstarts
                 foreach (ReferenceDescription result in browseResults)
                 {
                     m_output.WriteLine("     DisplayName = {0}, NodeClass = {1}", result.DisplayName.Text, result.NodeClass);
+                    if (result.NodeClass.Equals(NodeClass.Method))
+                    {
+                        if ((result.NodeId.Equals(Opc.Ua.MethodIds.Server_GetMonitoredItems)))
+                        {
+                            m_hasGetMonitoredItemsMethod = true;
+                        }
+                        else if ((result.NodeId.Equals(Opc.Ua.MethodIds.Server_SetSubscriptionDurable)))
+                        {
+                            m_hasSetSubscriptionDurableMethod = true;
+                        }
+                        m_output.WriteLine("     DisplayName = {0}, NodeClass = {1} is a method with a node id of {2}",
+                            result.DisplayName.Text,
+                            result.NodeClass,
+                            ((NodeId)result.NodeId).ToString());
+                    }
                 }
             }
             catch (Exception ex)
@@ -316,14 +331,19 @@ namespace Quickstarts
 
             try
             {
+                // Unnecessary. Just for reference.
+                NodeId serverId = new NodeId(Opc.Ua.ObjectIds.Server);
+
+
+
 #if Use_Reference_Server
                 string intNodeIdString = "ns=2;s=Scalar_Simulation_Int32";
                 string floatNodeIdString = "ns=2;s=Scalar_Simulation_Float";
                 string stringNodeIdString = "ns=2;s=Scalar_Simulation_String";
 #else
-                string intNodeIdString = "ns=2;s=Demo.Dynamic.Scalar.Int32";
-                string floatNodeIdString = "ns=2;s=Demo.Dynamic.Scalar.Float";
-                string stringNodeIdString = "ns=2;s=Demo.Dynamic.Scalar.String";
+                string intNodeIdString = "ns=3;s=Demo.Dynamic.Scalar.Int32";
+                string floatNodeIdString = "ns=3;s=Demo.Dynamic.Scalar.Float";
+                string stringNodeIdString = "ns=3;s=Demo.Dynamic.Scalar.String";
 #endif
 
                 uint queueSize = 41;
@@ -344,7 +364,21 @@ namespace Quickstarts
                 subscription.Create();
                 m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
-                // Archie - as far as I know, durable subscriptions are created here.
+//                m_hasSetSubscriptionDurableMethod = false;
+                if (m_hasSetSubscriptionDurableMethod)
+                {
+                    // Set the subscription to durable
+                    uint revisedLifetimeInHours = 0;
+                    if (subscription.SetSubscriptionDurable(1, out revisedLifetimeInHours))
+                    {
+                        m_output.WriteLine("Subscription {0} is now durable.", subscription.Id);
+                    }
+                    else
+                    {
+                        m_output.WriteLine("Subscription {0} failed durable call", subscription.Id);
+                    }
+                }
+
                 // Can I turn a durable subscription into non-durable?
 
                 // Create MonitoredItems for data changes (Reference Server)
@@ -386,14 +420,31 @@ namespace Quickstarts
 
                 // Create the monitored items on Server side
                 subscription.ApplyChanges();
-                m_output.WriteLine("MonitoredItems created for SubscriptionId = {0}.", subscription.Id);
+
+
+                if (m_hasGetMonitoredItemsMethod)
+                {
+                    UInt32Collection serverHandles = null;
+                    UInt32Collection clientHandles = null;
+
+                    if (subscription.GetMonitoredItems(out serverHandles, out clientHandles))
+                    {
+                        if (serverHandles.Count == clientHandles.Count)
+                        {
+                            for (int i = 0; i < serverHandles.Count; i++)
+                            {
+                                m_output.WriteLine("ServerHandle = {0}, ClientHandle = {1}", serverHandles[i], clientHandles[i]);
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 m_output.WriteLine("Subscribe error: {0}", ex.Message);
             }
         }
-#endregion
+        #endregion
 
         #region Fetch with NodeCache
         /// <summary>
@@ -1111,5 +1162,8 @@ namespace Quickstarts
         private readonly TextWriter m_output;
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
+
+        private bool m_hasGetMonitoredItemsMethod = false;
+        private bool m_hasSetSubscriptionDurableMethod = false;
     }
 }
