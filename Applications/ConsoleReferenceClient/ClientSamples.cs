@@ -30,6 +30,9 @@
 #define Use_Demo_Server
 //#define Use_Reference_Server
 
+#pragma warning disable 0414
+#pragma warning disable 0219
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -356,6 +359,7 @@ namespace Quickstarts
                     PublishingInterval = 30000,
                     LifetimeCount = 0,
                     MinLifetimeInterval = minLifeTime,
+                    RepublishAfterTransfer = true
                 };
 
                 session.AddSubscription(subscription);
@@ -443,8 +447,50 @@ namespace Quickstarts
             {
                 m_output.WriteLine("Subscribe error: {0}", ex.Message);
             }
+
+            m_output.WriteLine("SubscribeToDataChanges - Exiting");
         }
         #endregion
+
+        public async Task DurableSubscription(
+            Uri serverUrl,
+            ApplicationConfiguration applicationConfiguration,
+            ReverseConnectManager reverseConnectManager,
+            TextWriter output )
+        {
+            if (m_hasSetSubscriptionDurableMethod)
+            {
+                if (DurableSubscriptionThread == null)
+                {
+                    // Archie Implement minimal client solution for the time being,
+                    // just get a state machine going
+
+                    UAClient uaClient = new UAClient(applicationConfiguration,
+                        reverseConnectManager,
+                        output,
+                        ClientBase.ValidateResponse) {
+                        AutoAccept = true,
+                        SessionLifeTime = 60_000,
+                    };
+
+                    // Temporary of course
+                    string username = "john";
+                    string userpassword = "master";
+
+                    uaClient.UserIdentity = new UserIdentity(username, userpassword ?? string.Empty);
+                    bool noSecurity = false;
+                    // wait for timeout or Ctrl-C
+                    var quitCTS = new CancellationTokenSource();
+                    var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+                    bool connected = await uaClient.ConnectAsync(serverUrl.ToString(), !noSecurity, quitCTS.Token).ConfigureAwait(false);
+                    if (connected)
+                    {
+                        // Fantastic
+
+                    }
+                }
+            }
+        }
 
         #region Fetch with NodeCache
         /// <summary>
@@ -1092,7 +1138,12 @@ namespace Quickstarts
             {
                 // Log MonitoredItem Notification event
                 MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2}.", notification.Message.SequenceNumber, monitoredItem.ResolvedNodeId, notification.Value);
+                m_output.WriteLine("Notification: {0} \"{1}\" and Value = {2} Server {3} Source {4}.",
+                    notification.Message.SequenceNumber,
+                    monitoredItem.DisplayName,
+                    notification.Value.Value,
+                    notification.Value.ServerTimestamp.ToLongTimeString() + "." + notification.Value.ServerTimestamp.Millisecond.ToString(),
+                    notification.Value.SourceTimestamp.ToLongTimeString() + "." + notification.Value.SourceTimestamp.Millisecond.ToString());
             }
             catch (Exception ex)
             {
@@ -1165,5 +1216,7 @@ namespace Quickstarts
 
         private bool m_hasGetMonitoredItemsMethod = false;
         private bool m_hasSetSubscriptionDurableMethod = false;
+
+        private Thread DurableSubscriptionThread = null;
     }
 }

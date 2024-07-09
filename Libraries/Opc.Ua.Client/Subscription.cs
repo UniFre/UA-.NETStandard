@@ -1966,7 +1966,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task PublishResponseMessageWorkerAsync(CancellationToken ct)
         {
-            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
+            Utils.LogInfo("SubscriptionId {0} - Publish Thread {1:X8} Started.", m_id, Environment.CurrentManagedThreadId);
 
             bool cancelled;
             try
@@ -2221,8 +2221,35 @@ namespace Opc.Ua.Client
                         return;
                     }
 
+                    Utils.LogInfo("OnMessageReceivedAsync there are {0} messages", m_incomingMessages.Count);
+
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
+                        if ( ii.Value.Message != null )
+                        {
+                            if ( ii.Value.Message.NotificationData != null )
+                            {
+                                Utils.LogInfo("OnMessageReceivedAsync message is not null, NotificationData count {0}", ii.Value.Message.NotificationData.Count);
+                                foreach( ExtensionObject extensionObject in ii.Value.Message.NotificationData )
+                                {
+                                    DataChangeNotification dataChangeNotification = extensionObject.Body as DataChangeNotification;
+                                    if ( dataChangeNotification != null )
+                                    {
+                                        Utils.LogInfo("OnMessageReceivedAsync NotificationData MonitoredItem Count is {0}", dataChangeNotification.MonitoredItems.Count);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Utils.LogInfo("OnMessageReceivedAsync message is not null, NotificationData is null");
+                            }
+                        }
+                        else
+                        {
+                            Utils.LogInfo("OnMessageReceivedAsync message is null" );
+
+                        }
+
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
                             (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value)))

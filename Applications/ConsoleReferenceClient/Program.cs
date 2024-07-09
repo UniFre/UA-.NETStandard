@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -365,12 +366,81 @@ namespace Quickstarts.ConsoleReferenceClient
                                 samples.WriteNodes(uaClient.Session);
                                 samples.Browse(uaClient.Session);
                                 samples.CallMethod(uaClient.Session);
+                                // Subscribe to DataChanges is a long syncronous call.
+                                // Any work with Durable needs to be done before this call.
+                                //await samples.DurableSubscription(
+                                //    serverUrl,
+                                //    application.ApplicationConfiguration,
+                                //    reverseConnectManager,
+                                //    output);
+
                                 samples.SubscribeToDataChanges(uaClient.Session, 120_000);
 
                                 output.WriteLine("Waiting...");
 
-                                // Wait for some DataChange notifications from MonitoredItems
-                                quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 300_000);
+                                output.WriteLine("Session Id = " + uaClient.Session.SessionId.ToString() );
+                                foreach( var item in uaClient.Session.Subscriptions)
+                                {
+                                    output.WriteLine("Subscription Id = " + item.Id.ToString() );
+                                }
+
+                                int waitCounters = 0;
+                                int killTime = uaClient.ReconnectPeriod * 35;
+                                int restartTime = uaClient.ReconnectPeriod * 41;
+                                int desiredWaitTime = 300_000;
+                                while (!quit && waitCounters < desiredWaitTime)
+                                {
+                                    quit = quitEvent.WaitOne(uaClient.ReconnectPeriod);
+                                    waitCounters += uaClient.ReconnectPeriod;
+                                    output.WriteLine("Archie Waiting " + waitCounters.ToString() );
+
+                                    if ( waitCounters == killTime )
+                                    {
+                                        foreach (var process in Process.GetProcessesByName("server_cpp_demod"))
+                                        {
+                                            process.Kill();
+                                        }
+                                    }
+
+                                    //if ( waitCounters == restartTime )
+                                    //{
+                                    //    Process process = new Process();
+                                    //    process.StartInfo.FileName = "E:\\installs\\UnifiedAutomation\\sdk\\bin\\server_cpp_demod.exe";
+                                    //    process.StartInfo.UseShellExecute = true;
+                                    //    process.Start();
+                                    //}
+
+                                    if ( uaClient.Recovered )
+                                    {
+                                        uaClient.Recovered = false;
+
+                                        output.WriteLine(" New Session Id = " + uaClient.Session.SessionId.ToString());
+                                        foreach (var item in uaClient.Session.Subscriptions)
+                                        {
+                                            output.WriteLine("New Subscription Id = " + item.Id.ToString());
+                                        }
+
+                                        bool result = await uaClient.ReconnectAndTransfer(serverUrl.ToString(), useSecurity: !noSecurity, quitCTS.Token);
+                                        if (result)
+                                        {
+                                            output.WriteLine("Reconnected and Transfered at time  = " + waitCounters);
+                                        }
+
+                                        output.WriteLine(" New Session Id = " + uaClient.Session.SessionId.ToString());
+                                        foreach (var item in uaClient.Session.Subscriptions)
+                                        {
+                                            output.WriteLine("New Subscription Id = " + item.Id.ToString());
+                                        }
+
+                                        // Transfer
+
+                                    }
+                                }
+
+                                output.WriteLine("Archie Complete");
+
+                                //// Wait for some DataChange notifications from MonitoredItems
+                                //quit = quitEvent.WaitOne(timeout > 0 ? waitTime : 300_000);
                             }
 
                             output.WriteLine("Client disconnected.");

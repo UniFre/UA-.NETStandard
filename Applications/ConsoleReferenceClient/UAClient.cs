@@ -102,6 +102,23 @@ namespace Quickstarts
         /// </summary>
         public int ReconnectPeriod { get; set; } = 1000;
 
+        public bool Recovered {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_recovered;
+                }
+            }
+            set
+            {
+                lock (m_lock)
+                {
+                    m_recovered = value;
+                }
+            }
+        }
+
         /// <summary>
         /// The reconnect period exponential backoff to be used in ms.
         /// </summary>
@@ -127,6 +144,28 @@ namespace Quickstarts
         /// </summary>
         public string LogFile { get; set; }
         #endregion
+
+        public async Task<bool> ReconnectAndTransfer(string serverUrl, bool useSecurity = true, CancellationToken ct = default)
+        {
+            bool success = false;
+            ISession oldSession = m_session;
+            m_session = null;
+            if (await ConnectAsync( serverUrl, useSecurity, ct ) )
+            {
+                if (oldSession != null && m_session != null)
+                {
+                    m_output.WriteLine("Transferring subscriptions from old session to new session...");
+                    SubscriptionCollection subscriptionCollection = new SubscriptionCollection( oldSession.Subscriptions );
+                    success = m_session.TransferSubscriptions(subscriptionCollection, true);
+                    if ( success )
+                    {
+                        m_output.WriteLine("Subscriptions transferred.");
+                    }
+                }
+            }
+
+            return success;
+        }
 
         #region Public Methods
         /// <summary>
@@ -338,6 +377,7 @@ namespace Quickstarts
                         m_output.WriteLine("--- RECONNECTED TO NEW SESSION --- {0}", m_reconnectHandler.Session.SessionId);
                         var session = m_session;
                         m_session = m_reconnectHandler.Session;
+                        m_recovered = true;
                         Utils.SilentDispose(session);
                     }
                     else
@@ -352,6 +392,7 @@ namespace Quickstarts
             }
         }
         #endregion
+
 
         #region Protected Methods
         /// <summary>
@@ -396,6 +437,7 @@ namespace Quickstarts
         private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         private bool m_disposed = false;
+        private bool m_recovered = false;
         #endregion
     }
 }
